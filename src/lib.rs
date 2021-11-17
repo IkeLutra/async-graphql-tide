@@ -9,7 +9,7 @@
 #![forbid(unsafe_code)]
 
 use async_graphql::http::MultipartOptions;
-use async_graphql::{ObjectType, ParseRequestError, Schema, SubscriptionType};
+use async_graphql::{EmptySubscription, ObjectType, ParseRequestError, Schema};
 use tide::utils::async_trait;
 use tide::{
     http::{
@@ -22,9 +22,9 @@ use tide::{
 /// Create a new GraphQL endpoint with the schema.
 ///
 /// Default multipart options are used and batch operations are supported.
-pub fn endpoint<Query, Mutation, Subscription>(
-    schema: Schema<Query, Mutation, Subscription>,
-) -> Endpoint<Query, Mutation, Subscription> {
+pub fn endpoint<Query, Mutation>(
+    schema: Schema<Query, Mutation, EmptySubscription>,
+) -> Endpoint<Query, Mutation> {
     Endpoint {
         schema,
         opts: MultipartOptions::default(),
@@ -36,16 +36,16 @@ pub fn endpoint<Query, Mutation, Subscription>(
 ///
 /// This is created with the [`endpoint`](fn.endpoint.html) function.
 #[non_exhaustive]
-pub struct Endpoint<Query, Mutation, Subscription> {
+pub struct Endpoint<Query, Mutation> {
     /// The schema of the endpoint.
-    pub schema: Schema<Query, Mutation, Subscription>,
+    pub schema: Schema<Query, Mutation, EmptySubscription>,
     /// The multipart options of the endpoint.
     pub opts: MultipartOptions,
     /// Whether to support batch requests in the endpoint.
     pub batch: bool,
 }
 
-impl<Query, Mutation, Subscription> Endpoint<Query, Mutation, Subscription> {
+impl<Query, Mutation> Endpoint<Query, Mutation> {
     /// Set the multipart options of the endpoint.
     #[must_use]
     pub fn multipart_opts(self, opts: MultipartOptions) -> Self {
@@ -59,7 +59,7 @@ impl<Query, Mutation, Subscription> Endpoint<Query, Mutation, Subscription> {
 }
 
 // Manual impl to remove bounds on generics
-impl<Query, Mutation, Subscription> Clone for Endpoint<Query, Mutation, Subscription> {
+impl<Query, Mutation> Clone for Endpoint<Query, Mutation> {
     fn clone(&self) -> Self {
         Self {
             schema: self.schema.clone(),
@@ -70,12 +70,10 @@ impl<Query, Mutation, Subscription> Clone for Endpoint<Query, Mutation, Subscrip
 }
 
 #[async_trait]
-impl<Query, Mutation, Subscription, TideState> tide::Endpoint<TideState>
-    for Endpoint<Query, Mutation, Subscription>
+impl<Query, Mutation, TideState> tide::Endpoint<TideState> for Endpoint<Query, Mutation>
 where
     Query: ObjectType + 'static,
     Mutation: ObjectType + 'static,
-    Subscription: SubscriptionType + 'static,
     TideState: Clone + Send + Sync + 'static,
 {
     async fn call(&self, request: Request<TideState>) -> tide::Result {
